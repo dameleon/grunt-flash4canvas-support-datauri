@@ -1,6 +1,6 @@
 /*
- * grunt-cjs-support-datauri
- * https://github.com/dameleon/grunt-cjs-support-datauri
+ * grunt-flash4canvas-support-datauri
+ * https://github.com/dameleon/grunt-flash4canvas-support-datauri
  *
  * Copyright (c) 2014 dameleon
  * Licensed under the MIT license.
@@ -18,7 +18,7 @@ module.exports = function(grunt) {
     },
 
     // Configuration to be run (and then tested).
-    cjs_support_datauri: {
+    flash4canvas_support_datauri: {
       test: {
         options: {
         },

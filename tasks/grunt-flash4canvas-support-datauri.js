@@ -23,10 +23,10 @@ module.exports = function(grunt) {
   grunt.registerMultiTask('flash4canvas_support_datauri', 'Converted to DataURL, the images of manifest in output from Flash CC (or Toolkit for createjs)', function() {
     var done = this.async();
     var options = this.options({
-      varName       : 'manifest',
-      namespace     : null,
-      cjsImageType  : 'createjs.LoadQueue.IMAGE'
-      imageBasePath : null
+        varName       : 'manifest',
+        namespace     : null,
+        cjsImageType  : 'createjs.LoadQueue.IMAGE',
+        imageBasePath : null
     });
 
     this.files.forEach(function(f) {
@@ -46,7 +46,7 @@ module.exports = function(grunt) {
           } catch (e) {
             grunt.log.error('JSON.parse error', e, manifests);
           }
-          createBase64AssetListWithManifests(manifests, options.imageBasePath || path.dirname(filepath), done);
+          createBase64AssetListWithManifests(f, obj, options.imageBasePath, done);
         }
       };
 
@@ -65,6 +65,10 @@ module.exports = function(grunt) {
         var reader = readline.createInterface({ 'input': rs, 'output': {} });
         var manifest = '';
 
+        if (!options.imageBasePath) {
+          options.imageBasePath = path.dirname(filepath) + '/';
+        }
+
         reader.on('close', function() {
           counter(manifest);
         });
@@ -74,7 +78,7 @@ module.exports = function(grunt) {
           if (reading) {
             if ((matches = line.match(/^(.*)?\]/))) {
               if (matches[1]) {
-                manifest += matches[i].trim();
+                manifest += matches[1].trim();
               }
               reader.close();
             } else {
@@ -90,37 +94,39 @@ module.exports = function(grunt) {
         });
       });
     });
+
+
+    function createBase64AssetListWithManifests(f, manifests, basePath, callback) {
+      var prefix = getPrefixByOption(options);
+
+      manifests.map(function(manifest) {
+        var filepath = path.normalize(basePath + '/' + manifest.src);
+
+        if (!grunt.file.exists(filepath)) {
+          grunt.log.error("Can't find file.", filepath);
+          callback(false);
+        }
+        var extName = path.extname(filepath);
+        var mimeType = MIME_TYPES[extName.substr(1, extName.length)];
+
+        if (!mimeType) {
+          return;
+        }
+        var file = fs.readFileSync(filepath);
+
+        manifest.src = 'data:' + mimeType + ';base64,' + new Buffer(file).toString('base64');
+        manifest.type = TYPE_REPLACE_TARGET;
+      });
+
+      var jsonStr = JSON.stringify(manifests, null, 2).
+                      replace(new RegExp('"' + TYPE_REPLACE_TARGET + '"', 'gi'), options.cjsImageType);
+
+      grunt.file.write(f.dest, prefix + jsonStr + ';');
+      grunt.log.writeln('File "' + f.dest + '" created.');
+      callback(true);
+    }
   });
 
-  function createBase64AssetListWithManifests(manifests, basePath, callback) {
-    var prefix = getPrefixByOption(options);
-
-    manifests.map(function(manifest) {
-      var filepath = path.normalize(basePath + '/' + manifest.src);
-
-      if (!grunt.file.exists(filepath)) {
-        grunt.log.error("Can't find file.", filepath);
-        callback(false);
-      }
-      var extName = path.extname(filepath);
-      var mimeType = MIME_TYPES[extName.substr(1, extName.length)];
-
-      if (!mimeType) {
-        return;
-      }
-      var file = fs.readFileSync(filepath);
-
-      manifest.src = 'data:' + mimeType + ';base64,' + new Buffer(file).toString('base64');
-      manifest.type = TYPE_REPLACE_TARGET;
-    });
-
-    var jsonStr = JSON.stringify(manifests, null, 2).
-                    replace(new RegExp('"' + TYPE_REPLACE_TARGET + '"', 'gi'), options.cjsImageType);
-
-    grunt.file.write(f.dest + '.js', prefix + jsonStr + ';');
-    grunt.log.writeln('File "' + f.dest + '" created.');
-    callback(true);
-  }
 
   function getPrefixByOption(options) {
     var ns = options.namespace;
@@ -129,7 +135,7 @@ module.exports = function(grunt) {
 
     if (ns) {
       res = ns + '||(' + ns + '={});\n' +
-            ns + '.' + vn;
+        ns + '.' + vn;
     } else {
       res = 'var ' + vn;
     }

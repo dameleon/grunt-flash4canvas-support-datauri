@@ -27,7 +27,8 @@ module.exports = function(grunt) {
         varName       : 'manifest',
         namespace     : null,
         cjsImageType  : 'createjs.LoadQueue.IMAGE',
-        imageBasePath : null
+        imageBasePath : null,
+        ignore        : []
     });
 
     this.files.forEach(function(f) {
@@ -82,7 +83,7 @@ module.exports = function(grunt) {
                 manifest += matches[1].trim();
               }
               reader.close();
-            } else {
+            } else if (!isIgnore(line)) {
               manifest += line.trim();
             }
           }
@@ -96,6 +97,26 @@ module.exports = function(grunt) {
       });
     });
 
+    function isIgnore(str) {
+      var ignore = options.ignore;
+      var res = false;
+
+      if (!ignore || !ignore.length) {
+        return res;
+      }
+      for (var i = 0, ignore; re = ignore[i]; i++) {
+        var type = typeof re;
+
+        if (type === 'string') {
+          re = new RegExp(re);
+        }
+        if (re.test(str)) {
+          res = true;
+          break;
+        }
+      }
+      return res;
+    }
 
     function createBase64AssetListWithManifests(f, manifests, basePath, callback) {
       var prefix = getPrefixByOption(options);

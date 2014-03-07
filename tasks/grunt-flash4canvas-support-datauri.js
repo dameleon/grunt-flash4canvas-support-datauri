@@ -104,7 +104,7 @@ module.exports = function(grunt) {
       if (!ignore || !ignore.length) {
         return res;
       }
-      for (var i = 0, ignore; re = ignore[i]; i++) {
+      for (var i = 0, re; re = ignore[i]; i++) {
         var type = typeof re;
 
         if (type === 'string') {

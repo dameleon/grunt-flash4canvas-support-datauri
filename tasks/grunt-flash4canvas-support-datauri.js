@@ -6,9 +6,10 @@
  * Licensed under the MIT license.
  */
 
-'use strict';
 
 module.exports = function(grunt) {
+  'use strict';
+
   var fs = require('fs');
   var path = require('path');
   var readline = require('readline');
@@ -140,6 +141,6 @@ module.exports = function(grunt) {
       res = 'var ' + vn;
     }
     return res + ' = ';
-  };
+  }
 
 };

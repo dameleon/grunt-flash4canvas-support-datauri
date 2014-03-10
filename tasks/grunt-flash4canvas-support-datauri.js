@@ -157,7 +157,7 @@ module.exports = function(grunt) {
 
     if (ns) {
       res = ns + '||(' + ns + '={});\n' +
-        ns + '.' + vn;
+            ns + '.' + vn;
     } else {
       res = 'var ' + vn;
     }

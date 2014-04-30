@@ -43,7 +43,7 @@ module.exports = function(grunt) {
           var obj;
 
           try {
-            // FIXME: Security fix
+            // FIXME: JSON.parse だと辛い気持ちになるけど eval やめたい
             obj = eval(manifests);
           } catch (e) {
             grunt.log.error('JSON.parse error', e, manifests);
@@ -54,6 +54,7 @@ module.exports = function(grunt) {
 
       counter.count = 0;
 
+      // Tookkit から抜く場合と FlashCC から抜く場合でフォーマット変わるのでめんどくさいけど1行ずつ抜いてあげる
       f.src.filter(function(filepath) {
         if (!grunt.file.exists(filepath)) {
           grunt.log.warn('Source file "' + filepath + '" not found.');
@@ -99,23 +100,21 @@ module.exports = function(grunt) {
 
     function isIgnore(str) {
       var ignore = options.ignore;
-      var res = false;
 
-      if (!ignore || !ignore.length) {
-        return res;
+      if (typeof ignore !== 'array') {
+        grunt.log.error('TypeError: options.ignore must be Array');
+      } else if (!ignore || !ignore.length) {
+        return false;
       }
-      for (var i = 0, re; re = ignore[i]; i++) {
-        var type = typeof re;
 
-        if (type === 'string') {
+      return ignore.some(function(re) {
+        if (typeof re === 'string') {
           re = new RegExp(re);
         }
         if (re.test(str)) {
-          res = true;
-          break;
+          return true;
         }
-      }
-      return res;
+      });
     }
 
     function createBase64AssetListWithManifests(f, manifests, basePath, callback) {

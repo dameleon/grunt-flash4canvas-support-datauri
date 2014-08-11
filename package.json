@@ -1,7 +1,7 @@
 {
   "name": "grunt-flash4canvas-support-datauri",
   "description": "Converted to DataURL, the images of manifest in output from Flash CC (or Toolkit for createjs)",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "homepage": "https://github.com/dameleon/grunt-flash4canvas-support-datauri",
   "author": {
     "name": "dameleon",

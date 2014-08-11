@@ -24,8 +24,8 @@ module.exports = function(grunt) {
         },
         files: [
           {
-            src: ['./test/fixtures/test_published.js'],
-            dest: './tmp/test.js'
+            src: ['./test/fixtures/*.js'],
+            dest: './tmp.hoge/'
           }
         ]
       }

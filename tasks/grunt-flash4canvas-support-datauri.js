@@ -28,6 +28,7 @@ module.exports = function(grunt) {
         basepath: '',
         outputType: OUTPUT_TYPE.EMBED,
         ignores: null,
+        jsonFileSuffix: '_json',
         mimeTypeToManifestTypeMap: {
             image  : 'image',
             audio  : 'sound',
@@ -82,15 +83,33 @@ module.exports = function(grunt) {
                     res = JSON.stringify(res);
 
                     if (options.outputType === OUTPUT_TYPE.JSON) {
-                        grunt.file.write(f.dest, res);
-                        grunt.log.writeln('JSON File "' + f.dest + '" created.');
+                        var destPath = getDestPath(f.dest, filepath, 'json', option.jsonFileSuffix);
+
+                        grunt.file.write(destPath, res);
+                        grunt.log.writeln('JSON File "' + destPath + '" created.');
                     } else {
-                        grunt.file.write(f.dest, file.replace(MANIFEST_RE, MANIFEST_PREFIX + res));
-                        grunt.log.writeln('Created file and replace manifests to Base64 string in "' + f.dest + '"');
+                        var destPath = getDestPath(f.dest, filepath, 'js');
+
+                        grunt.file.write(destPath, file.replace(MANIFEST_RE, MANIFEST_PREFIX + res));
+                        grunt.log.writeln('Created file and replace manifests to Base64 string in "' + destPath + '"');
                     }
                 });
         });
 
+
+        function getDestPath(destpath, filepath, extname, suffix) {
+            var targetPath;
+
+            // 拡張子を持ってる場合
+            if (path.extname(destpath) && !(destpath[destpath.length - 1] === path.sep)) {
+                targetPath = destpath;
+            }
+            // 拡張子を持っていない場合(directory)
+            else {
+                targetPath = path.join(destpath, path.basename(filepath));
+            }
+            return path.join(path.dirname(targetPath), path.basename(targetPath, path.extname(targetPath))) + (suffix || '') + '.' + extname;
+        }
 
         function isIgnore(str) {
             var ignores = options.ignores;

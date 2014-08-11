@@ -8,159 +8,130 @@
 
 
 module.exports = function(grunt) {
-  'use strict';
+    'use strict';
 
-  var fs = require('fs');
-  var path = require('path');
-  var readline = require('readline');
-  var MIME_TYPES = {
-    'png'  : 'image/png',
-    'gif'  : 'image/gif',
-    'jpg'  : 'image/jpeg',
-    'jpeg' : 'image/jpeg'
-  };
-  var TYPE_REPLACE_TARGET = '%TYPE_REPLACE_TARGET%';
+    var fs = require('fs');
+    var path = require('path');
+    var MIME_TYPES = {
+        'png'  : 'image/png',
+        'gif'  : 'image/gif',
+        'jpg'  : 'image/jpeg',
+        'jpeg' : 'image/jpeg'
+    };
+    var MANIFEST_RE = /manifest\s?:\s?(\[[\s\w\d\/-{}"'.,]*?\])/m;
+    var MANIFEST_PREFIX = 'manifest: ';
+    var OUTPUT_TYPE = {
+        EMBED: 'embed',
+        JSON:  'json'
+    };
+    var DEFAULT_PARAMS = {
+        basepath: '',
+        outputType: OUTPUT_TYPE.EMBED,
+        ignores: null,
+        mimeTypeToManifestTypeMap: {
+            image  : 'image',
+            audio  : 'sound',
+            binary : 'binary'
+        },
+    };
 
-  grunt.registerMultiTask('flash4canvas_support_datauri', 'Converted to DataURL, the images of manifest in output from Flash CC (or Toolkit for createjs)', function() {
-    var done = this.async();
-    var options = this.options({
-        varName       : 'manifest',
-        namespace     : null,
-        cjsImageType  : 'createjs.LoadQueue.IMAGE',
-        imageBasePath : null,
-        ignore        : []
-    });
+    grunt.registerMultiTask('flash4canvas_support_datauri', 'Converted to DataURL, the images of manifest in output from Flash CC (or Toolkit for createjs)', function() {
+        var options = this.options(DEFAULT_PARAMS);
 
-    this.files.forEach(function(f) {
-      var manifests = '[';
-      var taskLength = f.src.length;
-      var counter = function(manifest) {
-        counter.count++;
-        manifests += manifest;
+        this.files.forEach(function(f) {
+            f.src
+                .filter(function(filepath) {
+                    if (!grunt.file.exists(filepath)) {
+                        grunt.log.warn('Source file "' + filepath + '" not found.');
+                        return false;
+                    } else {
+                        return true;
+                    }
+                })
+                .map(function(filepath) {
+                    var file = fs.readFileSync(filepath).toString('utf8');
+                    var matched = MANIFEST_RE.exec(file);
 
-        if (taskLength <= counter.count) {
-          manifests += ']';
-          var obj;
+                    if (!matched || matched.length < 2) {
+                        grunt.log.warn('Undefined manifest in file: ' + filepath);
+                        return;
+                    }
+                    var manifests = eval(matched[1]);
+                    var res = [];
 
-          try {
-            // FIXME: JSON.parse だと辛い気持ちになるけど eval やめたい
-            obj = eval(manifests);
-          } catch (e) {
-            grunt.log.error('JSON.parse error', e, manifests);
-          }
-          createBase64AssetListWithManifests(f, obj, options.imageBasePath, done);
-        }
-      };
+                    manifests.forEach(function(m) {
+                        if (isIgnore(m.id)) {
+                            res.push(m);
+                            return;
+                        }
+                        var targetFilePath = path.join(options.basepath || path.dirname(filepath), m.src);
 
-      counter.count = 0;
+                        if (!fs.existsSync(targetFilePath)) {
+                            grunt.log.warn('Target file not found : ' + targetFilePath);
+                            res.push(m);
+                            return;
+                        }
+                        var mimeType = getMimeTypeByFilePath(targetFilePath);
+                        var targetFile = fs.readFileSync(targetFilePath);
 
-      // Tookkit から抜く場合と FlashCC から抜く場合でフォーマット変わるのでめんどくさいけど1行ずつ抜いてあげる
-      f.src.filter(function(filepath) {
-        if (!grunt.file.exists(filepath)) {
-          grunt.log.warn('Source file "' + filepath + '" not found.');
-          return false;
-        } else {
-          return true;
-        }
-      }).map(function(filepath) {
-        var rs = fs.ReadStream(filepath);
-        var reading = false;
-        var reader = readline.createInterface({ 'input': rs, 'output': {} });
-        var manifest = '';
+                        m.src = generateDataUrl(targetFile, mimeType);
+                        m.type = getManifestTypeByMimeType(mimeType);
+                        res.push(m);
+                    });
 
-        if (!options.imageBasePath) {
-          options.imageBasePath = path.dirname(filepath) + '/';
-        }
+                    res = JSON.stringify(res);
 
-        reader.on('close', function() {
-          counter(manifest);
+                    if (options.outputType === OUTPUT_TYPE.JSON) {
+                        grunt.file.write(f.dest, res);
+                        grunt.log.writeln('JSON File "' + f.dest + '" created.');
+                    } else {
+                        grunt.file.write(f.dest, file.replace(MANIFEST_RE, MANIFEST_PREFIX + res));
+                        grunt.log.writeln('Created file and replace manifests to Base64 string in "' + f.dest + '"');
+                    }
+                });
         });
-        reader.on('line', function(line) {
-          var matches;
 
-          if (reading) {
-            if ((matches = line.match(/^(.*)?\]/))) {
-              if (matches[1]) {
-                manifest += matches[1].trim();
-              }
-              reader.close();
-            } else if (!isIgnore(line)) {
-              manifest += line.trim();
+
+        function isIgnore(str) {
+            var ignores = options.ignores;
+
+            if (!ignores || !ignores.length) {
+                return false;
+            } else if (!Array.isArray(ignores)) {
+                grunt.log.error('TypeError: options.ignores must be Array');
             }
-          }
-          else if ((matches = line.match(/manifest:\s?\[(.*)?$/))) {
-            if (matches[1]) {
-              manifest += matches[1].trim();
+            return ignores.some(function(re) {
+                if (typeof re === 'string') {
+                    re = new RegExp(re);
+                }
+                if (re.test(str)) {
+                    return true;
+                }
+            });
+        }
+
+        function getMimeTypeByFilePath(filepath) {
+            var ext = path.extname(filepath);
+            var mimeType = MIME_TYPES[ext.substr(1, ext.length)];
+
+            if (!mimeType) {
+                grunt.log.error('Undefined mimetype : ' + ext);
             }
-            reading = true;
-          }
-        });
-      });
+            return mimeType;
+        }
+
+        function generateDataUrl(file, mimeType) {
+            return ['data:', mimeType, ';base64,' + new Buffer(file).toString('base64')].join('');
+        }
+
+        function getManifestTypeByMimeType(mimeType) {
+            var mimeHeader = mimeType.split('/')[0];
+            var res = options.mimeTypeToManifestTypeMap[mimeHeader];
+
+            if (!res) {
+                res = options.mimeTypeToManifestTypeMap.binary;
+            }
+            return res;
+        }
     });
-
-    function isIgnore(str) {
-      var ignore = options.ignore;
-
-      if (typeof ignore !== 'array') {
-        grunt.log.error('TypeError: options.ignore must be Array');
-      } else if (!ignore || !ignore.length) {
-        return false;
-      }
-
-      return ignore.some(function(re) {
-        if (typeof re === 'string') {
-          re = new RegExp(re);
-        }
-        if (re.test(str)) {
-          return true;
-        }
-      });
-    }
-
-    function createBase64AssetListWithManifests(f, manifests, basePath, callback) {
-      var prefix = getPrefixByOption(options);
-
-      manifests.map(function(manifest) {
-        var filepath = path.normalize(basePath + '/' + manifest.src);
-
-        if (!grunt.file.exists(filepath)) {
-          grunt.log.error("Can't find file.", filepath);
-          callback(false);
-        }
-        var extName = path.extname(filepath);
-        var mimeType = MIME_TYPES[extName.substr(1, extName.length)];
-
-        if (!mimeType) {
-          return;
-        }
-        var file = fs.readFileSync(filepath);
-
-        manifest.src = 'data:' + mimeType + ';base64,' + new Buffer(file).toString('base64');
-        manifest.type = TYPE_REPLACE_TARGET;
-      });
-
-      var jsonStr = JSON.stringify(manifests, null, 2).
-                      replace(new RegExp('"' + TYPE_REPLACE_TARGET + '"', 'gi'), options.cjsImageType);
-
-      grunt.file.write(f.dest, prefix + jsonStr + ';');
-      grunt.log.writeln('File "' + f.dest + '" created.');
-      callback(true);
-    }
-  });
-
-
-  function getPrefixByOption(options) {
-    var ns = options.namespace;
-    var vn = options.varName;
-    var res;
-
-    if (ns) {
-      res = ns + '||(' + ns + '={});\n' +
-            ns + '.' + vn;
-    } else {
-      res = 'var ' + vn;
-    }
-    return res + ' = ';
-  }
-
 };

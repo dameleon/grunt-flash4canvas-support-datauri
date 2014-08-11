@@ -19,6 +19,8 @@ module.exports = function(grunt) {
     flash4canvas_support_datauri: {
       test: {
         options: {
+            ignores: ['aaa'],
+            basepath: __dirname + '/test/fixtures'
         },
         files: [
           {

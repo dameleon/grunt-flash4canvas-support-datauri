@@ -29,10 +29,14 @@ grunt.initConfig({
       'dest_file_name': ['SRC_FILES'],  
     },
     options: {
-      varName       : 'manifest',
-      namespace     : 'lib',
-      cjsImageType  : 'createjs.LoadQueue.IMAGE',
-      imageBasePath : '/PATH/TO/IMAGE/'
+      basepath: '',
+      outputType: 'embed',
+      ignores: null,
+      mimeTypeToManifestTypeMap: {
+          image  : 'image',
+          audio  : 'sound',
+          binary : 'binary'
+      },
     }
   },
 });
@@ -40,35 +44,32 @@ grunt.initConfig({
 
 ### Options
 
-#### options.varName
+#### options.basepath
 Type: `String`
-Default value: `'manifest'`
+Default value: `''`
 
-A string value that is used to define output variable.
+A string value that is use to define base path of image. If you don't specify, It determine the base path of the image based on the path of the file that you defined.
 
-#### options.namespace
+
+### options.outputType
 Type: `String`
+Default value: `'embed'`
+
+A string value that is use to detect output type. You have choice between 'embed' and 'json'.
+
+
+### options.ignores
+Type: `Array`
 Default value: `null`
 
-A string value that is used to define namespace of the destination.
+An array value that contain RegExp or String for ignore manifest id.
 
-And is output as "namespace.varName = {/ * OUTPUT * /}" If you have specified if.
 
-#### options.cjsImageType
-Type: `String`
-Default value: `createjs.LoadQueue.IMAGE`
+#### options.mimeTypeToManifestTypeMap
+Type: `Object`
+Default value: `{ image: 'image', audio: 'sound', binary: 'binary' }`
 
-A string value that is used to define the type of manifest to be output.
-
-Note: Rather than a string, and is expanded as a variable to refer. If you want use string value, you specify as `'"IMAGE"'` it.
-
-#### options.imageBasePath
-Type: `String`
-Default value: 'null'
-
-A string value that is use to define base path of image.
-
-If you don't specify, It determine the base path of the image based on the path of the file that you defined.
+An object value that contain createjs manifest types.
 
 
 ### Usage Examples
@@ -95,10 +96,12 @@ grunt.initConfig({
       'dest_file_name': ['./target_file.js'],  
     },
     options: {
-      varName       : 'manifest',
-      namespace     : 'lib',
-      cjsImageType  : 'createjs.LoadQueue.IMAGE',
-      imageBasePath : '/PATH/TO/IMAGE/'
+      basepath: '/path/to/image',
+      outputType: 'embed',
+      ignores: [
+        /foo/,
+        'bar'
+      ],
     }
   },
 });
@@ -109,4 +112,5 @@ In lieu of a formal styleguide, take care to maintain the existing coding style.
 
 ## Release History
 
+- 0.0.3: add embed mode
 - 0.0.0: pre release.
